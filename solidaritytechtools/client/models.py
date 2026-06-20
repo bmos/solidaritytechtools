@@ -142,7 +142,7 @@ class Activity(BaseModel):
     actionable_type: str
     action: dict[str, Any] | None = None
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime | None = None
 
 
 class EventSession(BaseModel):
