@@ -1,3 +1,5 @@
+import logging
+import time
 from typing import Any, TypeVar
 
 import httpx
@@ -61,6 +63,8 @@ from solidaritytechtools.client.models import (
 
 T = TypeVar("T", bound=BaseModel)
 
+logger = logging.getLogger(__name__)
+
 
 class STError(Exception):
     """Base exception for Solidarity Tech API errors."""
@@ -101,9 +105,15 @@ class STClient:
         api_key: str,
         base_url: str = "https://api.solidarity.tech/v1",
         timeout: float = 30.0,
+        max_retries: int = 5,
+        retry_backoff_s: float = 1.0,
+        max_retry_wait_s: float = 60.0,
     ):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
+        self.max_retries = max_retries
+        self.retry_backoff_s = retry_backoff_s
+        self.max_retry_wait_s = max_retry_wait_s
         self.client = httpx.Client(
             base_url=self.base_url,
             headers={
@@ -146,9 +156,34 @@ class STClient:
         else:
             raise STError(f"API request failed ({status}): {message}", status, details)
 
+    def _retry_after_seconds(self, response: httpx.Response, attempt: int) -> float:
+        """Seconds to wait before retrying a 429, honoring Retry-After when present."""
+        header = response.headers.get("Retry-After")
+        if header:
+            try:
+                return min(float(header), self.max_retry_wait_s)
+            except ValueError:
+                pass
+        return min(self.retry_backoff_s * (2**attempt), self.max_retry_wait_s)
+
+    def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
+        """Issue a request, retrying on 429 (rate limit) up to max_retries."""
+        attempt = 0
+        while True:
+            response = self.client.request(method, path, **kwargs)
+            if response.status_code == 429 and attempt < self.max_retries:
+                wait = self._retry_after_seconds(response, attempt)
+                logger.warning(
+                    f"Rate limited on {method} {path}; retrying in {wait:.0f}s "
+                    f"(attempt {attempt + 1}/{self.max_retries})"
+                )
+                time.sleep(wait)
+                attempt += 1
+                continue
+            return self._handle_response(response)
+
     def _get(self, path: str, params: dict | None = None) -> httpx.Response:
-        response = self.client.get(path, params=params)
-        return self._handle_response(response)
+        return self._request("GET", path, params=params)
 
     def _post(
         self,
@@ -158,18 +193,15 @@ class STClient:
     ) -> httpx.Response:
         if isinstance(json, BaseModel):
             json = json.model_dump(exclude_unset=True, mode="json")
-        response = self.client.post(path, json=json, params=params)
-        return self._handle_response(response)
+        return self._request("POST", path, json=json, params=params)
 
     def _put(self, path: str, json: dict | BaseModel | None = None) -> httpx.Response:
         if isinstance(json, BaseModel):
             json = json.model_dump(exclude_unset=True, mode="json")
-        response = self.client.put(path, json=json)
-        return self._handle_response(response)
+        return self._request("PUT", path, json=json)
 
     def _delete(self, path: str, params: dict | None = None) -> httpx.Response:
-        response = self.client.delete(path, params=params)
-        return self._handle_response(response)
+        return self._request("DELETE", path, params=params)
 
     def _parse_item(self, response: httpx.Response, model_class: type[T]) -> T:
         data = response.json()
@@ -184,11 +216,22 @@ class STClient:
     # --- Users ---
 
     def get_users(
-        self, limit: int = 20, offset: int = 0, since: int = 0, user_list_ids: str | None = None
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        since: int = 0,
+        *,
+        user_list_ids: str | None = None,
+        phone_number: str | None = None,
+        email: str | None = None,
     ) -> PaginatedResponse[User]:
         params: dict[str, Any] = {"_limit": limit, "_offset": offset, "_since": since}
         if user_list_ids:
             params["user_list_ids"] = user_list_ids
+        if phone_number:
+            params["phone_number"] = phone_number
+        if email:
+            params["email"] = email
         return self._parse_paginated(self._get("/users", params=params), User)
 
     def get_user(self, user_id: int) -> User:

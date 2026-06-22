@@ -31,6 +31,8 @@ with STClient(api_key="...") as client:
     })
 ```
 
+The client also handles rate limiting, honoring `Retry-After` headers, so you can be confident scripts won't break when rate limited.
+
 ### JSON Export Tools
 
 The library includes tools for validating and parsing Solidarity Tech JSON export files into structured models.
@@ -85,7 +87,6 @@ If you notice client functions not working as expected, feel free to use raw int
 3. Start coding and make a MR :)
 
 Please use `uv run ty check .` to check the type safety of your code before submitting a MR. 
-When possible, `ty check .` will be added to pre-commit hooks.
 
 ## Publishing
 
