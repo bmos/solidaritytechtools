@@ -12,6 +12,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pre-commit>=4.5.1",
+    "pytest>=9.1.1",
     "ruff>=0.14.13",
     "ty>=0.0.13",
 ]
@@ -23,3 +24,9 @@ build-backend = "hatchling.build"
 [tool.ruff]
 line-length = 100
 lint.select = ["E", "F", "I", "UP", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ty.src]
+exclude = ["tests/**"]
