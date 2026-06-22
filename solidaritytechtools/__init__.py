@@ -7,8 +7,11 @@ from solidaritytechtools.json_export.export import (
 from solidaritytechtools.match_persons.match_persons import (
     find_best_match,
     find_matches,
+    find_matches_emails,
     match_persons,
 )
+from solidaritytechtools.services.users import UserStore, get_all_users, set_email_permission
+from solidaritytechtools.tools.add_traffic_data import add_traffic_data, build_traffic_scorer
 
 __all__ = [
     "STClient",
@@ -18,4 +21,10 @@ __all__ = [
     "match_persons",
     "find_matches",
     "find_best_match",
+    "find_matches_emails",
+    "get_all_users",
+    "UserStore",
+    "set_email_permission",
+    "add_traffic_data",
+    "build_traffic_scorer",
 ]
