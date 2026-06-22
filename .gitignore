@@ -13,6 +13,9 @@
 
 *.env
 
+# Local secret blocklist scanned by the forbidden-strings pre-commit hook.
+.forbidden-strings
+
 *.swp
 
 # Byte-compiled / optimized / DLL files

@@ -16,3 +16,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: forbidden-strings
+        name: block forbidden secret strings
+        entry: python3 scripts/check_forbidden_strings.py
+        language: system
