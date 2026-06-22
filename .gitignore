@@ -1,3 +1,16 @@
+# --- Data files (PII guard) ---
+# Datasets, exports, and spreadsheets are ignored everywhere by default so personal
+# data (emails, names, addresses, coordinates) can't be committed by accident.
+# To intentionally commit a specific data file, opt it back in with a negation
+# below (e.g. `!tests/fixtures/sample.csv`) or use `git add -f <file>`.
+*.csv
+*.json
+*.geojson
+*.xlsx
+
+# Opt-in exceptions (add `!` lines here):
+# !tests/fixtures/example.json
+
 *.env
 
 *.swp
