@@ -68,6 +68,48 @@ for person_id, match in matches.items():
 
 Current heuristics use email and phone for high-confidence matching, and name + zip code for lower-confidence fuzzy matching. **Please look through the code before using this in production to understand what it's doing.**
 
+### Email Matching & Bulk User Operations
+
+Match a list of emails to ST user ids, or load every user once into a cached `UserStore` for fast local lookups and bulk updates — avoiding one API call per user (and the rate limits that come with it).
+
+```python
+from solidaritytechtools import STClient, UserStore, find_matches_emails, set_email_permission
+
+# Map a list of emails -> ST user ids (optionally ignoring "+subaddressing")
+matches = find_matches_emails(["a@example.com", "b+promo@example.com"], api_key="...")
+
+# Or build a reusable, file-cached store and query it locally
+store = UserStore.from_api(api_key="...")
+user = store.match_email("a@example.com")
+
+# Bulk-set a permission across many users
+with STClient(api_key="...") as client:
+    set_email_permission(client, matches.values(), permission=False)
+```
+
+### CSV Tools
+
+Pull the email column out of an arbitrary CSV — the column is auto-detected by header name, falling back to content.
+
+```python
+from solidaritytechtools.utils.csv_tools import get_emails_from_csv
+
+emails = get_emails_from_csv("contacts.csv")
+```
+
+### Traffic Scoring (yard-sign prioritization)
+
+Score contacts by how much traffic passes their home (WisDOT Annual Average Daily Traffic — Wisconsin only) and optionally write the score to a custom user property, to prioritize where yard signs get the most views. Freeways are excluded so homes snap to the nearest sign-visible surface street. Supports dry runs and a Members-in-Good-Standing filter.
+
+```python
+from solidaritytechtools import add_traffic_data
+
+# Dry run: score Members in Good Standing, write nothing
+result = add_traffic_data(api_key="...", members_in_good_standing_only=True, dry_run=True)
+for contact in result.scored[:10]:
+    print(contact.hash_id, contact.aadt, contact.address)
+```
+
 
 ## Using
 
