@@ -9,6 +9,7 @@ import solidaritytechtools.client.models as client_models
 import solidaritytechtools.json_export.models as json_export_models
 from solidaritytechtools.client.base_client import STClient
 from solidaritytechtools.json_export.export import STJsonExport
+from solidaritytechtools.services.users import UserStore, get_all_users
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,28 @@ def match_persons(
     return results
 
 
+def find_matches_emails(
+    emails: list[str], *, api_key: str, strip_subaddress: bool = True, refresh: bool = False
+) -> dict[str, int]:
+    """
+    Given a list of emails, find matching accounts in ST.
+
+    Loads all users once into a cached UserStore and matches locally, rather than making one
+    API call per email.
+
+    params:
+        emails: list of email addresses
+        api_key: api key to auth with ST with
+        strip_subaddress: If True, also match without email subaddresses,
+            ie map jack+123@example.com to jack@example.com, on either side (input or ST account)
+        refresh: if True, ignore the on-disk user cache and re-fetch from the API
+
+    returns: mapping of input email -> integer Solidarity Tech ID, only for emails that matched
+    """
+    store = UserStore.from_api(api_key, refresh=refresh)
+    return store.match_emails(emails, strip_subaddress=strip_subaddress)
+
+
 def find_matches(
     json_export_file: Path | str, api_key: str, threshold: float = DEFAULT_CONFIDENCE_THRESHOLD
 ) -> dict[int, list[ClientUserMatch]]:
@@ -141,30 +164,9 @@ def find_matches(
     export = STJsonExport.from_path(json_export_file)
     json_persons = export.people
 
-    all_users: list[client_models.User] = []
     with STClient(api_key=api_key) as client:
-        limit = 100
-        offset = 0
-        while True:
-            logger.info(f"Fetching users from api limit={limit} offset={offset}")
-            response = client.get_users(limit=limit, offset=offset)
-            if not response.data:
-                break
+        all_users = get_all_users(client)
 
-            all_users.extend(response.data)
-
-            # Check if we've reached the end based on total_count
-            if response.meta and response.meta.total_count is not None:
-                if len(all_users) >= response.meta.total_count:
-                    break
-
-            # Safety break if we got less than requested
-            if len(response.data) < limit:
-                break
-
-            offset += limit
-
-    # 3. Perform matching
     return match_persons(json_persons, all_users, threshold=threshold)
 
 
