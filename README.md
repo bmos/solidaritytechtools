@@ -4,9 +4,11 @@ An unofficial python library to help you automate solidarity tech (ST).
 
 See the ST api page for more details: https://www.solidarity.tech/reference/
 
-This is still in beta, and there is a bit more work to do. But you can still use this in production if you are bold.
+This is still in beta, and there is a bit more work to do. But you can still use this in production if you are bold, and I am safely using it on thousands of records.
 
 ## Features
+
+The primary benefit of using a library like this is to create tooling around your existing ST universe beyond the existing Automations functionality.
 
 ### Client  
 Call python methods to interact with the ST api. You can pass pydantic models and receive pydantic models in return, so you can rely on the response structure.
@@ -33,23 +35,11 @@ with STClient(api_key="...") as client:
 
 The client also handles rate limiting, honoring `Retry-After` headers, so you can be confident scripts won't break when rate limited.
 
-### JSON Export Tools
 
-The library includes tools for validating and parsing Solidarity Tech JSON export files into structured models.
-
-```python
-from solidaritytechtools import get_persons_from_json_export
-
-# Load and validate an export file
-people = get_persons_from_json_export("export-members-data.json")
-
-for person in people:
-    print(f"{person.first_name} {person.last_name} has {len(person.notes)} notes")
-```
 
 ### Contact Matching
 
-Given a JSON contact export and a live ST account, you can find the best matches to link local data to live API users. This is extremely useful for migrating historical data (like notes) from one ST account to another.
+Given a JSON ST contact export and a live ST account, you can find the best matches to link local data to live API users. This is extremely useful for migrating historical data (like notes) from one ST account to another.
 
 ```python
 from solidaritytechtools import find_best_match
@@ -70,13 +60,15 @@ Current heuristics use email and phone for high-confidence matching, and name + 
 
 ### Email Matching & Bulk User Operations
 
-Match a list of emails to ST user ids, or load every user once into a cached `UserStore` for fast local lookups and bulk updates — avoiding one API call per user (and the rate limits that come with it).
+Common operations like lookups or updating users require individual API calls per operation, which hits ST rate limits. There are limited batch endpoints.
+
+You can load every user once into a cached `UserStore` for fast local lookups and bulk updates, avoiding one API call per user (and the rate limits that come with it).
 
 ```python
 from solidaritytechtools import STClient, UserStore, find_matches_emails, set_email_permission
 
 # Map a list of emails -> ST user ids (optionally ignoring "+subaddressing")
-matches = find_matches_emails(["a@example.com", "b+promo@example.com"], api_key="...")
+matches = find_matches_emails(["a@example.com", "b+promo@example.com"], api_key="...", strip_subaddress=True)
 
 # Or build a reusable, file-cached store and query it locally
 store = UserStore.from_api(api_key="...")
@@ -87,19 +79,13 @@ with STClient(api_key="...") as client:
     set_email_permission(client, matches.values(), permission=False)
 ```
 
-### CSV Tools
 
-Pull the email column out of an arbitrary CSV — the column is auto-detected by header name, falling back to content.
 
-```python
-from solidaritytechtools.utils.csv_tools import get_emails_from_csv
+### Traffic Scoring (yard-sign prioritization) (Currently WI only)
 
-emails = get_emails_from_csv("contacts.csv")
-```
+Score contacts by how much traffic passes their home and optionally write the score to a custom user property. You can then then create sorted lists in ST to prioritize who to call to make sure yard signs get the most views.
 
-### Traffic Scoring (yard-sign prioritization)
-
-Score contacts by how much traffic passes their home (WisDOT Annual Average Daily Traffic — Wisconsin only) and optionally write the score to a custom user property, to prioritize where yard signs get the most views. Freeways are excluded so homes snap to the nearest sign-visible surface street. Supports dry runs and a Members-in-Good-Standing filter.
+t includes some logic where freeways are excluded so homes snap to the nearest sign-visible surface street. Supports dry runs and a Members-in-Good-Standing filter.
 
 ```python
 from solidaritytechtools import add_traffic_data
@@ -110,6 +96,31 @@ for contact in result.scored[:10]:
     print(contact.hash_id, contact.aadt, contact.address)
 ```
 
+### CSV Tools
+
+When working with VAN or ActionNetwork or other tools, you commonly get a csv export. There is some minor convenience tooling to help make working with this easier.
+
+The csv tools have a convenince function to get the only column with emails. This package can be extended for other types.
+
+```python
+from solidaritytechtools.utils.csv_tools import get_emails_from_csv
+
+emails = get_emails_from_csv("contacts.csv")
+```
+
+### JSON Export Tools
+
+The library includes tools for validating and parsing Solidarity Tech JSON export files into structured models.
+
+```python
+from solidaritytechtools import get_persons_from_json_export
+
+# Load and validate an export file
+people = get_persons_from_json_export("export-members-data.json")
+
+for person in people:
+    print(f"{person.first_name} {person.last_name} has {len(person.notes)} notes")
+```
 
 ## Using
 
@@ -125,7 +136,7 @@ If you notice client functions not working as expected, feel free to use raw int
 ## Contributing
 
 1. Clone the repo 
-2. Install pre-commit hooks (`uv run pre-commit install`)
+2. Install pre-commit hooks (`uv run pre-commit install`) - If you don't, your changes will likely break CICD.
 3. Start coding and make a MR :)
 
 Please use `uv run ty check .` to check the type safety of your code before submitting a MR. 
