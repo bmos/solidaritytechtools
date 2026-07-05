@@ -26,8 +26,12 @@ build-backend = "hatchling.build"
 line-length = 100
 lint.select = ["E", "F", "I", "UP", "B", "UP"]
 
-[tool.pytest.ini_options]
+[tool.pytest]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+relative_files = true
 
 [tool.ty.src]
 exclude = ["tests/**"]
