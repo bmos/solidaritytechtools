@@ -99,7 +99,7 @@ jobs:
           UV_RESOLUTION: ${{ matrix.resolution }}
         run: uv sync
       - env:
-          COVERAGE_FILE: .coverage
+          COVERAGE_FILE: .coverage.${{ matrix.os }}.${{ matrix.python-version }}.${{ matrix.resolution }}
         run: pytest --cov=solidaritytechtools
       - uses: actions/upload-artifact@v7
         with:
