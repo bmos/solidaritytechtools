@@ -100,8 +100,7 @@ jobs:
         run: uv sync
       - env:
           COVERAGE_FILE: .coverage
-        run: >-
-          pytest
+        run: pytest
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.resolution }}
